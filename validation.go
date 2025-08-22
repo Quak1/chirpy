@@ -1,34 +1,13 @@
 package main
 
 import (
-	"encoding/json"
-	"net/http"
+	"fmt"
 	"strings"
 )
 
-func handlerValidateChirp(w http.ResponseWriter, r *http.Request) {
-	type parameters struct {
-		Body string `json:"body"`
-	}
-	type returnVals struct {
-		CleanedBody string `json:"cleaned_body"`
-	}
-	type errorRes struct {
-		Error string `json:"error"`
-	}
-
-	params := parameters{}
-	err := json.NewDecoder(r.Body).Decode(&params)
-	if err != nil {
-		w.WriteHeader(http.StatusInternalServerError)
-		return
-	}
-
-	if len(params.Body) > 140 {
-		respondJSON(w, http.StatusBadRequest, errorRes{
-			Error: "Chirp is too lonng",
-		})
-		return
+func validateChirp(body string) (string, error) {
+	if len(body) > 140 {
+		return "", fmt.Errorf("Chirp is too long")
 	}
 
 	profanities := map[string]struct{}{
@@ -36,11 +15,8 @@ func handlerValidateChirp(w http.ResponseWriter, r *http.Request) {
 		"sharbert":  {},
 		"fornax":    {},
 	}
-	cleaned := replaceProfaneWords(params.Body, profanities, "*")
-
-	respondJSON(w, http.StatusOK, returnVals{
-		CleanedBody: cleaned,
-	})
+	cleaned := replaceProfaneWords(body, profanities, "*")
+	return cleaned, nil
 }
 
 func replaceProfaneWords(original string, profanities map[string]struct{}, c string) string {
