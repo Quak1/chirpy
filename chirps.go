@@ -47,3 +47,18 @@ func (cfg *apiConfig) handlerCreateChirp(w http.ResponseWriter, r *http.Request)
 
 	respondJSON(w, http.StatusCreated, Chirp(chirp))
 }
+
+func (cfg *apiConfig) handlerGetAllChirps(w http.ResponseWriter, r *http.Request) {
+	chirps, err := cfg.db.GetAllChirps(r.Context())
+	if err != nil {
+		respondJSONError(w, http.StatusInternalServerError, "failed to get chirps", err)
+		return
+	}
+
+	jsonChirps := make([]Chirp, len(chirps))
+	for i, chirp := range chirps {
+		jsonChirps[i] = Chirp(chirp)
+	}
+
+	respondJSON(w, http.StatusOK, jsonChirps)
+}
