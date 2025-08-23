@@ -3,6 +3,7 @@ package main
 import (
 	"encoding/json"
 	"net/http"
+	"sort"
 	"time"
 
 	"github.com/Quak1/chirpy/internal/auth"
@@ -61,6 +62,7 @@ func (cfg *apiConfig) handlerCreateChirp(w http.ResponseWriter, r *http.Request)
 }
 
 func (cfg *apiConfig) handlerGetAllChirps(w http.ResponseWriter, r *http.Request) {
+	sortQuery := r.URL.Query().Get("sort")
 	authorIdString := r.URL.Query().Get("author_id")
 	chirps := []database.Chirp{}
 	var err error
@@ -88,6 +90,12 @@ func (cfg *apiConfig) handlerGetAllChirps(w http.ResponseWriter, r *http.Request
 	jsonChirps := make([]Chirp, len(chirps))
 	for i, chirp := range chirps {
 		jsonChirps[i] = Chirp(chirp)
+	}
+
+	if sortQuery == "desc" {
+		sort.Slice(jsonChirps, func(i, j int) bool {
+			return jsonChirps[i].CreatedAt.After(jsonChirps[j].CreatedAt)
+		})
 	}
 
 	respondJSON(w, http.StatusOK, jsonChirps)
