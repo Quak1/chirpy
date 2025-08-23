@@ -61,10 +61,28 @@ func (cfg *apiConfig) handlerCreateChirp(w http.ResponseWriter, r *http.Request)
 }
 
 func (cfg *apiConfig) handlerGetAllChirps(w http.ResponseWriter, r *http.Request) {
-	chirps, err := cfg.db.GetAllChirps(r.Context())
-	if err != nil {
-		respondJSONError(w, http.StatusInternalServerError, "failed to get chirps", err)
-		return
+	authorIdString := r.URL.Query().Get("author_id")
+	chirps := []database.Chirp{}
+	var err error
+
+	if authorIdString == "" {
+		chirps, err = cfg.db.GetAllChirps(r.Context())
+		if err != nil {
+			respondJSONError(w, http.StatusInternalServerError, "failed to get chirps", err)
+			return
+		}
+	} else {
+		userID, err := uuid.Parse(authorIdString)
+		if err != nil {
+			respondJSONError(w, http.StatusBadRequest, "failed to parse author id", err)
+			return
+		}
+
+		chirps, err = cfg.db.GetUserChirps(r.Context(), userID)
+		if err != nil {
+			respondJSONError(w, http.StatusInternalServerError, "failed to get chirps", err)
+			return
+		}
 	}
 
 	jsonChirps := make([]Chirp, len(chirps))
