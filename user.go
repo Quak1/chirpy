@@ -168,3 +168,47 @@ func (cfg *apiConfig) handlerRevokeRefreshToken(w http.ResponseWriter, r *http.R
 
 	w.WriteHeader(http.StatusNoContent)
 }
+
+func (cfg *apiConfig) handlerUpdateUser(w http.ResponseWriter, r *http.Request) {
+	accessToken, err := auth.GetBearerToken(r.Header)
+	if err != nil {
+		respondJSONError(w, http.StatusUnauthorized, "failed to get bearer token", err)
+		return
+	}
+
+	userID, err := auth.ValidateJWT(accessToken, cfg.tokenSecret)
+	if err != nil {
+		respondJSONError(w, http.StatusUnauthorized, "failed to validate JWT", err)
+		return
+	}
+
+	params := struct {
+		Email    string `json:"email"`
+		Password string `json:"password"`
+	}{}
+	err = json.NewDecoder(r.Body).Decode(&params)
+	if err != nil {
+		respondJSONError(w, http.StatusBadRequest, "failed to parse request body", err)
+		return
+	}
+
+	hashedPassword, err := auth.HashPassword(params.Password)
+	if err != nil {
+		respondJSONError(w, http.StatusInternalServerError, "failed to genereate hashed password", err)
+		return
+	}
+
+	updatedUser, err := cfg.db.UpdateUser(r.Context(), database.UpdateUserParams{
+		Email:          params.Email,
+		ID:             userID,
+		HashedPassword: hashedPassword,
+		UpdatedAt:      time.Now(),
+	})
+
+	respondJSON(w, http.StatusOK, User{
+		ID:        updatedUser.ID,
+		CreatedAt: updatedUser.CreatedAt,
+		UpdatedAt: updatedUser.UpdatedAt,
+		Email:     updatedUser.Email,
+	})
+}
