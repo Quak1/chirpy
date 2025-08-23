@@ -1,7 +1,7 @@
 package auth
 
 import (
-	"fmt"
+	"net/http"
 	"testing"
 	"time"
 
@@ -46,7 +46,7 @@ func TestMakeJWT(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			_, err := MakeJWT(tt.userID, tt.tokenSecret, tt.expiresIn)
 			if tt.expectError {
-				if err != nil {
+				if err == nil {
 					t.Errorf("expected error but got none")
 				}
 				return
@@ -128,7 +128,6 @@ func TestValidateJWT(t *testing.T) {
 	}
 
 	for _, tt := range tests {
-		fmt.Println("running test")
 		t.Run(tt.name, func(t *testing.T) {
 			userID, err := ValidateJWT(tt.tokenString, tt.tokenSecret)
 
@@ -146,6 +145,60 @@ func TestValidateJWT(t *testing.T) {
 
 			if userID != tt.expectedID {
 				t.Errorf("expected user ID %s, got %s", tt.expectedID, userID)
+			}
+		})
+	}
+}
+
+func TestGetBearerToken(t *testing.T) {
+	validHeader := http.Header{}
+	validHeader.Set("Authorization", "Bearer token_string_test")
+	missingHeader := http.Header{}
+	badHeader := http.Header{}
+	badHeader.Set("Authorization", "bear some tokens")
+
+	tests := []struct {
+		name          string
+		headers       http.Header
+		expectedToken string
+		expectError   bool
+	}{
+		{
+			name:          "valid headers",
+			headers:       validHeader,
+			expectedToken: "token_string_test",
+			expectError:   false,
+		},
+		{
+			name:        "missing Authorization header",
+			headers:     missingHeader,
+			expectError: true,
+		},
+		{
+			name:        "invalid Authorization header",
+			headers:     badHeader,
+			expectError: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			token, err := GetBearerToken(tt.headers)
+			if tt.expectError {
+				if err == nil {
+					t.Errorf("expected error but got none")
+				}
+				return
+			}
+
+			if err != nil {
+				t.Errorf("unexpected error: %v", err)
+				return
+			}
+
+			if token != tt.expectedToken {
+				t.Errorf("output token different to expected token")
+				return
 			}
 		})
 	}

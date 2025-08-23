@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/Quak1/chirpy/internal/auth"
 	"github.com/Quak1/chirpy/internal/database"
 	"github.com/google/uuid"
 )
@@ -19,12 +20,23 @@ type Chirp struct {
 
 func (cfg *apiConfig) handlerCreateChirp(w http.ResponseWriter, r *http.Request) {
 	type parameters struct {
-		Body   string    `json:"body"`
-		UserID uuid.UUID `json:"user_id"`
+		Body string `json:"body"`
+	}
+
+	token, err := auth.GetBearerToken(r.Header)
+	if err != nil {
+		respondJSONError(w, http.StatusBadRequest, "failed to get bearer token", err)
+		return
+	}
+
+	userID, err := auth.ValidateJWT(token, cfg.tokenSecret)
+	if err != nil {
+		respondJSONError(w, http.StatusUnauthorized, "failed to validate JWT", err)
+		return
 	}
 
 	params := parameters{}
-	err := json.NewDecoder(r.Body).Decode(&params)
+	err = json.NewDecoder(r.Body).Decode(&params)
 	if err != nil {
 		respondJSONError(w, http.StatusInternalServerError, "failed to parse request body", err)
 		return
@@ -38,7 +50,7 @@ func (cfg *apiConfig) handlerCreateChirp(w http.ResponseWriter, r *http.Request)
 
 	chirp, err := cfg.db.CreateChirp(r.Context(), database.CreateChirpParams{
 		Body:   cleaned,
-		UserID: params.UserID,
+		UserID: userID,
 	})
 	if err != nil {
 		respondJSONError(w, http.StatusInternalServerError, "failed to create chirp", err)
